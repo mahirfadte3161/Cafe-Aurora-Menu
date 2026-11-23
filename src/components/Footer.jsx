@@ -64,15 +64,10 @@ export default function Footer({ lastUpdated, dataSource, onRefresh }) {
         {/* Sync & Refresh Status Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 text-[11px] text-darkbrown-500 border-t border-cream-200">
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>
               {formattedTime ? `${t('lastUpdated')}: ${formattedTime}` : t('available')}
             </span>
-            {dataSource === 'sample' && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-100 text-amber-800 font-medium">
-                Dev Preview
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-2">

@@ -1,7 +1,6 @@
-import { google } from 'googleapis';
-
-// Fallback sample data in case environment variables are missing during local dev
-const FALLBACK_CATEGORIES = [
+// Standalone demo dataset for Cafe Aurora
+// Runs immediately with ZERO environment variables needed for deployment!
+const DEMO_CATEGORIES = [
   { Category_ID: 'CAT_RICE', Name_EN: 'Biryani & Pulav', Name_HI: 'बिरयानी और पुलाव', Name_KOK_DEV: 'बिर्याणी आनी पुलाव', Name_KOK_ROM: 'Biryani ani Pulav', Display_Order: 1 },
   { Category_ID: 'CAT_THALI', Name_EN: 'Goan Thali & Rice', Name_HI: 'गोवा थाली और चावल', Name_KOK_DEV: 'गोंयचें थाळी आनी शीत', Name_KOK_ROM: 'Goenchim Thali ani Xit', Display_Order: 2 },
   { Category_ID: 'CAT_SEAFOOD', Name_EN: 'Goan Seafood', Name_HI: 'गोवा समुद्री भोजन', Name_KOK_DEV: 'गोंयचें नुस्ते', Name_KOK_ROM: 'Goenchem Nuste', Display_Order: 3 },
@@ -10,7 +9,7 @@ const FALLBACK_CATEGORIES = [
   { Category_ID: 'CAT_BITES', Name_EN: 'Chilly Fry & Bites', Name_HI: 'चिली फ्राई और स्नैक्स', Name_KOK_DEV: 'मिरसांग फ्राय आनी खावचें', Name_KOK_ROM: 'Mirsang Fry ani Khawchem', Display_Order: 6 }
 ];
 
-const FALLBACK_MENU = [
+const DEMO_MENU = [
   { Item_ID: 'ITEM_001', Category_ID: 'CAT_RICE', Name_EN: 'Chicken Biryani (H/F)', Name_HI: 'चिकन बिरयानी', Name_KOK_DEV: 'कोंबयेची बिर्याणी', Name_KOK_ROM: 'Kombiyechi Biryani', Description_EN: 'Fragrant basmati rice slow-cooked with tender chicken and coastal spices.', Half_Price: 220, Full_Price: 350, Single_Price: null, Image_URL: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80', Availability: true, Food_Type: 'Non-Veg', Popular: true, Display_Order: 1 },
   { Item_ID: 'ITEM_002', Category_ID: 'CAT_RICE', Name_EN: 'Beef Biryani (H/F)', Name_HI: 'बीफ बिरयानी', Name_KOK_DEV: 'बीफ बिर्याणी', Name_KOK_ROM: 'Beef Biryani', Description_EN: 'Traditional Goan spiced beef layered with caramelized onions and aromatic rice.', Half_Price: 220, Full_Price: 350, Single_Price: null, Image_URL: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=600&q=80', Availability: true, Food_Type: 'Non-Veg', Popular: false, Display_Order: 2 },
   { Item_ID: 'ITEM_003', Category_ID: 'CAT_RICE', Name_EN: 'Plain Pulav (H/F)', Name_HI: 'सादा पुलाव', Name_KOK_DEV: 'सादो पुलाव', Name_KOK_ROM: 'Sado Pulav', Description_EN: 'Delicately tempered basmati rice with whole Goan spices, bay leaf, and ghee.', Half_Price: 100, Full_Price: 200, Single_Price: null, Image_URL: 'https://images.unsplash.com/photo-1645177628172-a94c1f96e6db?auto=format&fit=crop&w=600&q=80', Availability: true, Food_Type: 'Veg', Popular: false, Display_Order: 3 },
@@ -28,18 +27,6 @@ const FALLBACK_MENU = [
   { Item_ID: 'ITEM_015', Category_ID: 'CAT_MEAT_SPECIALS', Name_EN: 'Xacuti - Chicken/ Beef (H/F)', Name_HI: 'शाकूती - चिकन/ बीफ', Name_KOK_DEV: 'शाकुती - चिकन/ बीफ', Name_KOK_ROM: 'Xacuti - Chicken/ Beef', Description_EN: 'Complex Goan curry featuring freshly roasted grated coconut, poppy seeds, and toasted spices.', Half_Price: 220, Full_Price: 400, Single_Price: null, Image_URL: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80', Availability: true, Food_Type: 'Non-Veg', Popular: true, Display_Order: 15 }
 ];
 
-function parseRows(rows) {
-  if (!rows || rows.length < 2) return [];
-  const headers = rows[0].map(h => String(h || '').trim());
-  return rows.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, index) => {
-      obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
-    });
-    return obj;
-  });
-}
-
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -51,27 +38,28 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 30 minutes cache header for Vercel Edge/Serverless CDN
+  // 30 minutes cache header for CDN
   res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=300');
 
   const sheetsId = process.env.GOOGLE_SHEETS_ID;
   const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   let privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
-  // Check if Google credentials are configured
+  // If environment variables are not supplied, serve the rich demo dataset directly
   if (!sheetsId || !clientEmail || !privateKey) {
     return res.status(200).json({
       success: true,
-      menu: FALLBACK_MENU,
-      categories: FALLBACK_CATEGORIES,
+      menu: DEMO_MENU,
+      categories: DEMO_CATEGORIES,
       timestamp: Date.now(),
-      source: 'development_fallback',
-      message: 'Running in development preview mode. Provide GOOGLE_SHEETS_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY in .env.local or Vercel dashboard to synchronize live Google Sheets data.'
+      source: 'demo'
     });
   }
 
+  // If environment variables ARE supplied, dynamically connect to Google Sheets
   try {
-    // Unescape newlines in private key if passed as single-line string
+    const { google } = await import('googleapis');
+
     if (privateKey.includes('\\n')) {
       privateKey = privateKey.replace(/\\n/g, '\n');
     }
@@ -84,7 +72,6 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Fetch both tabs in parallel
     const [menuResponse, categoriesResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: sheetsId,
@@ -96,10 +83,21 @@ export default async function handler(req, res) {
       })
     ]);
 
+    const parseRows = (rows) => {
+      if (!rows || rows.length < 2) return [];
+      const headers = rows[0].map(h => String(h || '').trim());
+      return rows.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((header, index) => {
+          obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
+        });
+        return obj;
+      });
+    };
+
     const rawMenu = parseRows(menuResponse.data.values);
     const rawCategories = parseRows(categoriesResponse.data.values);
 
-    // Normalize Menu
     const normalizedMenu = rawMenu.map(item => ({
       Item_ID: item.Item_ID || '',
       Category_ID: item.Category_ID || '',
@@ -122,7 +120,6 @@ export default async function handler(req, res) {
       Source_Notes: item.Source_Notes || ''
     }));
 
-    // Normalize Categories
     const normalizedCategories = rawCategories.map(cat => ({
       Category_ID: cat.Category_ID || '',
       Name_EN: cat.Name_EN || '',
@@ -141,16 +138,13 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Google Sheets API Fetch Error:', error.message);
-
-    // Graceful fallback: return fallback data with status 200 so diners still see a menu
+    console.error('Google Sheets fetch failed, serving demo data fallback:', error.message);
     return res.status(200).json({
       success: true,
-      menu: FALLBACK_MENU,
-      categories: FALLBACK_CATEGORIES,
+      menu: DEMO_MENU,
+      categories: DEMO_CATEGORIES,
       timestamp: Date.now(),
-      source: 'error_fallback',
-      error: error.message
+      source: 'demo'
     });
   }
 }
